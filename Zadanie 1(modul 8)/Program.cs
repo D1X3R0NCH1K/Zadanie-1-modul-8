@@ -1,87 +1,82 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace Zadanie_1_modul_8_
+class Program
 {
-    internal class Program
+    static void Main(string[] args)
     {
-        static void Main(string[] args)
+        Console.WriteLine("Введите путь к папке:");
+        string folderPath = Console.ReadLine();
+
+        /// Проверяем, существует ли директория
+        if (!Directory.Exists(folderPath))
         {
-            Console.Write("Введите путь до папки: ");
-            string folderPath = Console.ReadLine();
+            Console.WriteLine("Ошибка: Указанная папка не существует.");
+            return;
+        }
 
-            if (string.IsNullOrWhiteSpace(folderPath))
-            {
-                Console.WriteLine("Указан пустой путь.");
-                return;
-            }
+        try
+        {
+            CleanDirectory(folderPath);
+            Console.WriteLine("Очистка завершена.");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Console.WriteLine($"Ошибка доступа: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Произошла ошибка: {ex.Message}");
+        }
+    }
 
+    static void CleanDirectory(string path)
+    {
+        var timeLimit = DateTime.Now - TimeSpan.FromMinutes(30);
+
+        /// Удаляем файлы
+        foreach (var file in Directory.GetFiles(path))
+        {
             try
             {
-                // Проверяем существует ли папка
-                if (Directory.Exists(folderPath))
+                var lastAccessTime = File.GetLastAccessTime(file);
+                if (lastAccessTime < timeLimit)
                 {
-                    CleanOldFilesAndFolders(folderPath);
-                    Console.WriteLine("Очистка завершена.");
-                }
-                else
-                {
-                    Console.WriteLine("Папка по заданному адресу не существует.");
+                    File.Delete(file);
+                    Console.WriteLine($"Удален файл: {file}");
                 }
             }
-            catch (UnauthorizedAccessException uae)
+            catch (UnauthorizedAccessException ex)
             {
-                Console.WriteLine("Ошибка доступа: " + uae.Message);
+                Console.WriteLine($"Нет доступа к файлу: {file}. {ex.Message}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Произошла ошибка: " + ex.Message);
+                Console.WriteLine($"Ошибка при удалении файла {file}. {ex.Message}");
             }
         }
 
-        static void CleanOldFilesAndFolders(string folderPath)
+        /// Удаляем папки рекурсивно
+        foreach (var directory in Directory.GetDirectories(path))
         {
-            var directoryInfo = new DirectoryInfo(folderPath);
-            TimeSpan timeSpan = TimeSpan.FromMinutes(30);
-            DateTime thresholdTime = DateTime.Now - timeSpan;
-
-            // Удаляем файлы
-            foreach (var file in directoryInfo.GetFiles())
+            try
             {
-                if (file.LastAccessTime < thresholdTime)
+                CleanDirectory(directory);
+
+                /// Проверяем, если папка пуста после очистки
+                if (Directory.GetFileSystemEntries(directory).Length == 0)
                 {
-                    try
-                    {
-                        file.Delete();
-                        Console.WriteLine($"Удален файл: {file.FullName}");
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Не удалось удалить файл {file.FullName}: {ex.Message}");
-                    }
+                    Directory.Delete(directory);
+                    Console.WriteLine($"Удалена папка: {directory}");
                 }
             }
-
-            // Удаляем подпапки рекурсивно
-            foreach (var subDirectory in directoryInfo.GetDirectories())
+            catch (UnauthorizedAccessException ex)
             {
-                CleanOldFilesAndFolders(subDirectory.FullName); // Рекурсивный вызов
-                if (subDirectory.LastAccessTime < thresholdTime)
-                {
-                    try
-                    {
-                        subDirectory.Delete(true); // true для удаления с содержимым
-                        Console.WriteLine($"Удалена папка: {subDirectory.FullName}");
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Не удалось удалить папку {subDirectory.FullName}: {ex.Message}");
-                    }
-                }
+                Console.WriteLine($"Нет доступа к папке: {directory}. {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка при удалении папки {directory}. {ex.Message}");
             }
         }
     }
